@@ -58,7 +58,7 @@
 namespace smpp {
 	namespace pdu {
 
-	
+#pragma pack(push, 1)
 		struct tlv {
 
 			// TLV tags constants
@@ -133,6 +133,10 @@ namespace smpp {
 			uint16_t length;
 			uint8_t *value;
 
+			tlv(): tag(0), length(0), value(nullptr) {
+
+			}
+
 			//some TLV's require only tag and 0 length and no value part
 			tlv(uint16_t tag):
 				tag(tag), length(0), value(nullptr) {
@@ -162,6 +166,29 @@ namespace smpp {
 				delete [] value;
 			}
 
+
+			size_t size() {
+				return sizeof(tag) + sizeof(length) + length;
+			}
+
+			size_t to_buffer(uint8_t * const buffer) {
+				auto copy_offset = size_t(0);
+				::memcpy(buffer+copy_offset, &tag, sizeof(tag)); copy_offset += sizeof(tag);
+				::memcpy(buffer+copy_offset, &length, sizeof(length)); copy_offset += sizeof(length);
+				::memcpy(buffer+copy_offset, value, length); copy_offset += length;
+				return copy_offset;
+			}
+
+			size_t from_buffer(const uint8_t *buffer) {
+				if ( nullptr == buffer ) {
+					return 0;
+				}
+				auto copy_offset = size_t(0);
+				::memcpy(&tag, buffer+copy_offset, sizeof(tag)); copy_offset += sizeof(tag);
+				::memcpy(&length, buffer+copy_offset, sizeof(length)); copy_offset += sizeof(length);
+				::memcpy(value, buffer+copy_offset, length); copy_offset += length;
+				return copy_offset;
+			}
 
 			//setters
 			template <class T>
@@ -411,6 +438,7 @@ namespace smpp {
 		SMPP_PDU_TLV_SIMPLE(user_response_code, USER_RESPONSE_CODE, uint8_t);
 		SMPP_PDU_TLV_SIMPLE(ussd_service_op, USSD_SERVICE_OP, uint8_t);
 
+#pragma pack(pop)
 
 	};
 

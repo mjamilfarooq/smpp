@@ -22,6 +22,10 @@
 namespace smpp {
 
 
+	const static uint8_t SMPP_VERSION_0x33 = 0x33;
+	const static uint8_t SMPP_VERSION_0x34 = 0x34;
+	const static uint8_t SMPP_VERSION_0x50 = 0x50;
+
 	namespace address {
 		//SMPP ADDRESS TYPE OF NUMBER
 		const static uint8_t TON_UNKNOWN 			= 0b00000000;
@@ -101,51 +105,65 @@ namespace smpp {
 			uint32_t command_status;
 			uint32_t sequence_number;
 
-			uint32_t copy_offset;	//< internal to functionality for buffer creation
+
 
 			pdu(uint32_t command_id):
 				command_length(sizeof(pdu)),
 				command_id(command_id),
 				command_status(0),
-				sequence_number(0),
-				copy_offset(0) {
+				sequence_number(0) {
 
 			}
 
+			size_t size() {
+				return sizeof(command_length) +
+						sizeof(command_id) +
+						sizeof(command_status) +
+						sizeof(sequence_number);
+			}
+
 		public:
-			virtual uint8_t * to_buffer() {
-				auto ret = new uint8_t(command_length);
-				if ( nullptr == ret ) {
+
+
+
+			uint8_t* to_buffer() {
+
+				auto dest = new uint8_t[command_length];
+
+				if ( nullptr == dest ) {
 					//TODO: report this event on console and log
 					return nullptr;
 				}
 
+				size_t copy_offset = 0;
+
 				auto data = htonl(command_length);
 				auto length = sizeof(command_length);
-				std::memcpy(ret + copy_offset, &data, length); copy_offset += length;
+				std::memcpy(dest + copy_offset, &data, length); copy_offset += length;
 
 				data = htonl(command_id);
 				length = sizeof(command_id);
-				std::memcpy(ret + copy_offset, &data, length); copy_offset += length;
+				std::memcpy(dest + copy_offset, &data, length); copy_offset += length;
 
 				data = htonl(command_status);
 				length = sizeof(command_status);
-				std::memcpy(ret + copy_offset, &data, length); copy_offset += length;
+				std::memcpy(dest + copy_offset, &data, length); copy_offset += length;
 
 				data = htonl(sequence_number);
 				length = sizeof(sequence_number);
-				std::memcpy(ret + copy_offset, &data, length); copy_offset += length;
+				std::memcpy(dest + copy_offset, &data, length); copy_offset += length;
 
-				return ret;
+				return dest;
 			}
 
-			virtual bool from_buffer(uint8_t *buffer) {
+
+			size_t from_buffer(const uint8_t * buffer) {
 				if ( nullptr == buffer ) {
 					//TODO: report this event on console and log
-					return false;
+					return 0;
 				}
 
-				copy_offset = 0;
+				auto copy_offset = size_t(0);
 
 				std::memcpy(&command_length, buffer+copy_offset, sizeof(command_length));
 				copy_offset += sizeof(command_length);
@@ -163,13 +181,10 @@ namespace smpp {
 				copy_offset += sizeof(sequence_number);
 				sequence_number = ntohl(sequence_number);
 
-				return true;
+				return copy_offset;
 
 			}
 
-			virtual ~pdu() {
-
-			}
 		};
 
 

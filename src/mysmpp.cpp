@@ -9,6 +9,7 @@
 #include <iostream>
 #include "pdu/submit_sm.h"
 #include "pdu/data_sm.h"
+#include "pdu/bind_transmitter.h"
 
 using namespace std;
 
