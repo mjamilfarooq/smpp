@@ -22,13 +22,7 @@
 namespace smpp {
 
 
-
-
-	/*
-	 * @brief address structure define general source/destination address format used by smpp
-	 */
-	template <size_t n = 1>
-	struct address {
+	namespace address {
 		//SMPP ADDRESS TYPE OF NUMBER
 		const static uint8_t TON_UNKNOWN 			= 0b00000000;
 		const static uint8_t TON_INTERNATIONAL 		= 0b00000001;
@@ -50,10 +44,20 @@ namespace smpp {
 		const static uint8_t NPI_INTERNET  		= 0b00001110;
 		const static uint8_t NPI_WAP_CLIENT_ID 	= 0b00010010;
 
-		uint8_t ton;
-		uint8_t npi;
-		char addr[n];
+		/*
+		 * @brief address structure define general source/destination address format used by smpp
+		 */
+		template <size_t n>
+		struct address {
+			uint8_t ton;
+			uint8_t npi;
+			char addr[n];
+		};
+
+
 	};
+
+
 
 	namespace pdu {
 

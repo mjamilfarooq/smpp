@@ -16,8 +16,8 @@ namespace smpp {
 		struct data_sm: public pdu {
 			char service_type[6];
 	
-			address<65> source_addr;
-			address<65> destination_addr;
+			smpp::address::address<65> source_addr;
+			smpp::address::address<65> destination_addr;
 
 			uint8_t esm_struct;
 			uint8_t registerd_delivery;

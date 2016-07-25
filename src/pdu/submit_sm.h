@@ -20,8 +20,8 @@ namespace smpp{
 		struct submit_sm: public pdu {
 			char service_type[6];
 
-			address<21> source_addr;
-			address<21> destination_addr;
+			smpp::address::address<21> source_addr;
+			smpp::address::address<21> destination_addr;
 
 			uint8_t esm_struct;
 			uint8_t protocol_id;

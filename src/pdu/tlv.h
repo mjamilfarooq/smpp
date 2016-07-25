@@ -10,12 +10,49 @@
 
 #include "pdu.h"
 
+
+#define SMPP_PDU_TLV_NOVALUE(name, tag_value) \
+		struct name: public tlv { \
+			name(): \
+				tlv(tag_value) { \
+			} \
+		};
+
+
 #define SMPP_PDU_TLV_SIMPLE(name,tag_value,type) \
 		struct name: public tlv { \
 			name(type value): \
-				tlv(tag_value, sizeof(type), &value) { \
+				tlv(tag_value, sizeof(type), (uint8_t *)&value) { \
+			} \
+			\
+			type get() { \
+				return *reinterpret_cast<type *>(value); \
 			} \
 		};
+
+#define SMPP_PDU_TLV_STRING(name,tag_value) \
+		struct name: public tlv { \
+			name(const std::string &value): \
+				tlv(tag_value, value) { \
+			} \
+			\
+			std::string get() { \
+				return std::string(reinterpret_cast<char *>(value), length); \
+			} \
+		};
+
+
+#define SMPP_PDU_TLV_STRING_RANGE(name,tag_value,max,min) \
+		struct name: public tlv { \
+			name(const std::string &value): \
+				tlv(tag_value, value, max, min) { \
+			} \
+			\
+			std::string get() { \
+				return std::string(reinterpret_cast<char *>(value), length); \
+			} \
+		};
+
 
 
 namespace smpp {
@@ -62,7 +99,7 @@ namespace smpp {
 			static const uint16_t DELIVERY_FAILURE_REASON		= 0x0425;
 			static const uint16_t MORE_MESSAGES_TO_SEND			= 0x0426;
 			static const uint16_t MESSAGE_STATE					= 0x0427;
-			static const uint16_t CONGESSION_STATE				= 0x0428;
+			static const uint16_t CONGESTION_STATE				= 0x0428;
 			static const uint16_t USSD_SERVICE_OP				= 0x0501;
 			static const uint16_t BROADCAST_CHANNEL_INDICATOR	= 0x0600;
 			static const uint16_t BROADCAST_CONTENT_TYPE		= 0x0601;
@@ -96,10 +133,29 @@ namespace smpp {
 			uint16_t length;
 			uint8_t *value;
 
+			//some TLV's require only tag and 0 length and no value part
+			tlv(uint16_t tag):
+				tag(tag), length(0), value(nullptr) {
+			}
+
 			tlv(uint16_t tag, uint16_t length, uint8_t *value )
 				: tag(tag), length(length), value(nullptr) {
 				this->value = new uint8_t[this->length];
 				::memcpy(this->value, value, this->length);
+			}
+
+			tlv(uint16_t tag, const std::string &value, size_t max, size_t min):
+				tag(tag), length(0), value(nullptr) {
+				length = std::max(std::min(value.size(), max), min);
+				this->value = new uint8_t[length];
+				::memcpy(this->value, value.c_str(), std::min(value.size(), size_t(length)));
+			}
+
+			tlv(const uint16_t tag, const std::string &value):
+				tag(tag), length(0), value(nullptr) {
+				length = value.size();
+				this->value = new uint8_t[length];
+				::memcpy(this->value, value.c_str(), length);
 			}
 
 			~tlv() {
@@ -126,35 +182,25 @@ namespace smpp {
 				::memcpy(value, octet_string.c_str(), length);
 			}
 
-			void set_additional_status_info_text(const std::string &text) {
-				tag = ADDITIONAL_STATUS_INFO_TEXT;
-				length = std::min(text.size(), size_t(255));
-				value = new uint8_t[length];
-				::memcpy(value, text.c_str(), length);
+
+			//getters
+			template<typename T>
+			void get(T &value) {
+				if ( length == sizeof(value) ) ::memcpy(value, this->value, length);
 			}
 
-
-			/*
-			 * @brief settings for alert message on delivery this enable default behaviour
-			 */
-			void set_alert_on_message_delivery() {
-				tag = ALERT_ON_MESSAGE_DELIVERY;
-				length = 0;
-				value = nullptr;
+			void get(std::string &value) {
+				value = std::string(reinterpret_cast<char *>(this->value), length);
 			}
 
 			/*
-			 * @brief settings priority for alert message on delivery
+			 * @brief if tlv belongs to same type as given in tag
 			 *
-			 * @param priority value from 0 - 3 [default to High] 4 - 255 are reserved
+			 * @param tag value as define above
 			 */
-			void set_alert_on_message_delivery(uint8_t priority) {
-				tag = ALERT_ON_MESSAGE_DELIVERY;
-				length = 1;
-				value = new uint8_t[length];
-				value[0] = priority;
+			bool operator==(uint16_t tag) {
+				return this->tag == tag;
 			}
-
 
 			/*
 			 * @brief billing identification
@@ -187,47 +233,6 @@ namespace smpp {
 			}
 
 
-			/*
-			 * @brief set the success rate indicator defined as the number of BTS who accepted the message and the
-			 * total number who should accept the message
-			 *
-			 * @param value should be between 0-100 255 means information not available and all other values are
-			 * reserved. for reserved values functions set the value to 255
-			 *
-			 */
-			void set_broadcast_area_success(const uint8_t success_rate_indicator) {
-				tag =BROADCAST_AREA_SUCCESS;
-				length = 1;
-				value = new uint8_t[1];
-				value[0] = success_rate_indicator>100 && success_rate_indicator != 255 ? 255: success_rate_indicator;
-			}
-
-			/*
-			 * @brief provide additional information specific to broadcast content type
-			 *
-			 * @param string containing type information of broadcast information
-			 *
-			 */
-			void set_broadcast_content_type_info(const std::string &type_info) {
-				tag = BROADCAST_CONTENT_TYPE_INFO;
-				length = std::min(type_info.size(), size_t(255));
-				value = new uint8_t[length];
-				::memcpy(value, type_info.c_str(), length);
-			}
-
-
-			/*
-			 * @brief set broadcast channel indicator
-			 *
-			 * @param set 0 = Basic Broadcast Channel 1 = Extended Broadcast Channel
-			 */
-			void set_broadcast_channel_indicator(const uint8_t indicator) {
-				tag = BROADCAST_CHANNEL_INDICATOR;
-				length = 1;
-				value = new uint8_t[length];
-				value[0] = indicator;
-			}
-
 
 			/*
 			 * @brief set the broadcast content type
@@ -244,27 +249,7 @@ namespace smpp {
 				::memcpy(value+1, &encoding_content_type, sizeof(encoding_content_type));
 			}
 
-			/*
-			 * @brief broadcast_end_time will set the end time for broadcast
-			 *
-			 * @param std::string must be in format “YYMMDDhhmmsstnnp” and of size 16
-			 * if size is greater than 16 only 16 will be copied and if less then 16 only
-			 * those were copied but response of the function is undefined in this case
-			 */
-			void set_broadcast_end_time(const std::string &end_time) {
-				tag = BROADCAST_END_TIME;
-				length = 16;
-				value = new uint8_t[length];
-				::memcpy(value, end_time.c_str(), std::min(end_time.size(), size_t(length)));
-			}
 
-
-			void set_broadcast_error_status(const uint32_t error_status) {
-				tag = BROADCAST_ERROR_STATUS;
-				length = 4;
-				value = new uint8_t[length];
-				::memcpy(value, &error_status, length);
-			}
 
 			void set_broadcast_frequency_interval(const uint8_t time_units, const uint16_t no_time_units) {
 				tag = BROADCAST_FREQUENCY_INTERVAL;
@@ -272,27 +257,6 @@ namespace smpp {
 				value = new uint8_t[length];
 				value[0] = time_units;
 				::memcpy(value+1, &no_time_units, sizeof(no_time_units));
-			}
-
-			void set_broadcast_message_class(const uint8_t message_class) {
-				tag = BROADCAST_MESSAGE_CLASS;
-				length = 1;
-				value = new uint8_t[length];
-				value[0] = message_class;
-			}
-
-			void set_broadcast_rep_num(const uint16_t repeat) {
-				tag = BROADCAST_REP_NUM;
-				length = 2;
-				value = new uint8_t[length];
-				::memcpy(value, &repeat, length);
-			}
-
-			void set_broadcast_service_group(const std::string &service_group) {
-				tag = BROADCAST_SERVICE_GROUP;
-				length = std::min(service_group.size(), size_t(255));
-				value = new uint8_t[length];
-				::memcpy(value, service_group.c_str(), length);
 			}
 
 
@@ -318,82 +282,11 @@ namespace smpp {
 				::memcpy(value+1, display.c_str(), length-1);
 			}
 
-			void set_callback_num_pres_ind(const uint8_t indicator) {
-				tag = CALLBACK_NUM_PRES_IND;
-				length = 1;
-				value = new uint8_t[length];
-				value[0] = indicator;
-			}
-
-			void set_congestion_state(const uint8_t state) {
-				tag = CONGESSION_STATE;
-				length = 1;
-				value = new uint8_t[length];
-				value[0] = state;
-			}
-
-			void set_delivery_failure_reason(const uint8_t reason) {
-				tag = DELIVERY_FAILURE_REASON;
-				length = 1;
-				value = new uint8_t[length];
-				value[0] = reason;
-			}
-
 			void set_dest_addr_np_country(const uint64_t country_code) {
 				tag = DEST_ADDR_NP_COUNTRY;
 				length = 5;		//TODO: not clear if it will always be 5 byte or can be less also value representation is also not clear
 				value = new uint8_t[length];
 				::memcpy(value, &country_code, length);
-			}
-
-
-			void set_dest_addr_np_information(const std::string &information) {
-				tag = DEST_ADDR_NP_INFORMATION;
-				length = 10;
-				value = new uint8_t[length];
-				::memcpy(value, information.c_str(), length);
-			}
-
-			void set_dest_addr_np_resolution(const uint8_t indicator) {
-				tag = DEST_ADDR_NP_RESOLUTION;
-				length = 1;
-				value = new uint8_t[length];
-				value[0] = indicator;
-			}
-
-			void set_dest_addr_subunit(const uint8_t subunit) {
-				tag = DEST_ADDR_SUBUNIT;
-				length = 1;
-				value = new uint8_t[length];
-				value[0] = subunit;
-			}
-
-			void set_dest_bearer_type(const uint8_t type) {
-				tag = DEST_BEARER_TYPE;
-				length = 1;
-				value = new uint8_t[length];
-				value[0] = type;
-			}
-
-			void set_dest_network_id(const std::string &network_id) {
-				tag = DEST_NETWORK_ID;
-				length = std::max(std::min(network_id.size(), size_t(65)), size_t(7));
-				value = new uint8_t[length];
-				::memcpy(value, network_id.c_str(), std::min(network_id.size(), size_t(length)));
-			}
-
-			void set_dest_network_type(const uint8_t type) {
-				tag = DEST_NETWORK_TYPE;
-				length = 1;
-				value = new uint8_t[length];
-				value[0] = type;
-			}
-
-			void set_dest_node_id(const std::string &identity) {
-				tag = DEST_NODE_ID;
-				length = 6;
-				value = new uint8_t[length];
-				::memcpy(value, identity.c_str(), std::min(identity.size(), size_t(length)));
 			}
 
 			void set_dest_subaddress(const uint16_t subaddress_tag, const std::string &subaddress) {
@@ -411,34 +304,7 @@ namespace smpp {
 				value[0] = protocol_id;
 			}
 
-			void set_dest_port(const uint16_t port) {
-				tag = DEST_PORT;
-				length = 2;
-				value = new uint8_t[length];
-				::memcpy(value, &port, length);
-			}
 
-			void set_display_time(const uint8_t param) {
-				tag = DISPLAY_TIME;
-				length = 1;
-				value = new uint8_t[length];
-				value[0] = param;
-			}
-
-
-			void set_dpf_result(const bool set = true) {
-				tag = DPF_RESULT;
-				length = 1;
-				value = new uint8_t[length];
-				value[0] = set ? 1 : 0;	//all other values are reserved
-			}
-
-			void set_its_reply_type(const uint8_t reply_type) {
-				tag = ITS_REPLY_TYPE;
-				length = 1;
-				value = new uint8_t[length];
-				value[0] = reply_type;
-			}
 
 			/*
 			 * @brief required for CDMA Interactive Teleservice control information for interactive session between ESME and MS
@@ -455,33 +321,6 @@ namespace smpp {
 				value = new uint8_t[length];
 				value[0] = session_number;
 				value[1] = (sequence_number << 1 ) | ( is_end ? 0x01 : 0X00);	//second octet 0th bit is is_end and 1-7th represent sequence number
-			}
-
-
-			void set_language_indicator(const uint8_t lang) {
-				tag = LANGUAGE_INDICATOR;
-				length = 1;
-				value = new uint8_t[length];
-				value[0] = lang;
-			}
-
-			void set_message_payload(const std::string &payload) {
-				tag = MESSAGE_PAYLOAD;
-				length = payload.size();
-				value = new uint8_t[length];
-				::memcpy(value, payload.c_str(), length);
-			}
-
-			void set_message_state(const uint8_t state) {
-				set(MESSAGE_STATE, state);
-			}
-
-			void set_more_messages_to_send(const bool more = true) {
-				set(MORE_MESSAGES_TO_SEND, uint8_t(more ? 1 : 0));	//values other than 0 and 1 are reserved
-			}
-
-			void set_ms_availability_status(const uint8_t status) {
-				set(MS_AVAILABILITY_STATUS, status);
 			}
 
 			void set_ms_msg_wait_facilities(const uint8_t message_type, const bool set_indication_active = true ) {
@@ -508,74 +347,7 @@ namespace smpp {
 				::memcpy(value+1, &error_code, sizeof(error_code));
 			}
 
-			void set_number_of_messages(const uint8_t no_messages) {
-				set(NUMBER_OF_MESSAGES, no_messages);
-			}
-
-			void set_payload_type(const uint8_t type) {
-				set(PAYLOAD_TYPE, type);
-			}
-
-			void set_privacy_indicator(const uint8_t level) {
-				set(PRIVACY_INDICATOR, level);
-			}
-
-			void set_qos_time_to_live(const uint32_t time_sec) {
-				set(QOS_TIME_TO_LIVE, time_sec);
-			}
-
-			void set_receipted_message_id(const std::string &message_id) {
-				set(RECEIPTED_MESSAGE_ID, message_id, 65, 1);
-			}
-
-			void set_sar_msg_ref_num(const uint16_t ref_number) {
-				set(SAR_MSG_REF_NUM, ref_number);
-			}
-
-			void set_sar_segment_seqnum(const uint8_t seq_number) {
-				set(SAR_SEGMENT_SEQNUM, seq_number);
-			}
-
-			void set_sar_total_segments(const uint8_t total_segments) {
-				set(SAR_TOTAL_SEGMENTS, total_segments);
-			}
-
-			void set_sc_interface_version(const uint8_t version) {
-				set(SC_INTERFACE_VERSION, version);
-			}
-
-			void set_set_dpf(const bool delivery_failure_requested) {
-				set(SET_DPF, uint8_t(delivery_failure_requested?1:0));
-			}
-
-			void set_sm_signal(const uint16_t signal) {
-				set(SM_SIGNAL, signal);
-			}
-
-			void set_source_addr_subunit(const uint8_t subunit) {
-				set(SOURCE_ADDR_SUBUNIT, subunit);
-			}
-
-			void set_source_bearer_type(const uint8_t type) {
-				set(SOURCE_BEARER_TYPE, type);
-			}
-
-			void set_source_network_id(const std::string &id) {
-				set(SOURCE_NETWORK_ID, id, 65, 7);
-			}
-
-			void set_source_network_type(const uint8_t type) {
-				set(SOURCE_NETWORK_TYPE, type);
-			}
-
-			void set_source_node_id(const std::string &node_id) {
-				set(SOURCE_NODE_ID, node_id, 6, 6);
-			}
-
-			void set_source_port(const uint16_t port) {
-				set(SOURCE_PORT, port);
-			}
-
+			//TODO: this logic should be treated separately through specialization
 			void set_source_subaddress(const uint16_t subaddress_tag, const std::string &subaddress) {
 				tag = SOURCE_SUBADDRESS;
 				length = std::max(std::min(subaddress.size(), size_t(23)), size_t(2));
@@ -584,27 +356,56 @@ namespace smpp {
 				::memcpy(value+sizeof(subaddress_tag), subaddress.c_str(), std::min(subaddress.size(), size_t(length - sizeof(subaddress_tag))));
 			}
 
-			void set_source_telematics_id(const uint8_t protocol_id) {
-				set(SOURCE_TELEMATICS_ID, protocol_id);
-			}
-
-			void set_user_message_reference(const uint16_t reference) {
-				set(USER_MESSAGE_REFERENCE, reference);
-			}
-
-			void set_user_response_code(const uint8_t response_code) {
-				set(USER_RESPONSE_CODE, response_code);
-			}
-
-			void set_ussd_service_op(const uint8_t service_op) {
-				set(USSD_SERVICE_OP, service_op);
-			}
-
-
-
-
 		};
 
+
+		SMPP_PDU_TLV_STRING_RANGE(additional_status_info_text, ADDITIONAL_STATUS_INFO_TEXT, 255, 1);
+		SMPP_PDU_TLV_NOVALUE(alert_on_message_delivery, ALERT_ON_MESSAGE_DELIVERY);
+
+		SMPP_PDU_TLV_STRING_RANGE(broadcast_end_time, BROADCAST_END_TIME, 16, 16);
+		SMPP_PDU_TLV_SIMPLE(broadcast_error_status, BROADCAST_ERROR_STATUS, uint32_t);
+		SMPP_PDU_TLV_SIMPLE(broadcast_area_success, BROADCAST_AREA_SUCCESS, uint8_t);
+		SMPP_PDU_TLV_STRING_RANGE(broadcast_content_type_info, BROADCAST_CONTENT_TYPE_INFO, 255, 1);
+		SMPP_PDU_TLV_SIMPLE(broadcast_channel_indicator, BROADCAST_CHANNEL_INDICATOR, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(broadcast_message_class, BROADCAST_MESSAGE_CLASS, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(broadcast_rep_num, BROADCAST_REP_NUM, uint16_t);
+		SMPP_PDU_TLV_STRING_RANGE(broadcast_service_group, BROADCAST_SERVICE_GROUP, 255, 1);
+		SMPP_PDU_TLV_SIMPLE(callback_num_pres_ind, CALLBACK_NUM_PRES_IND, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(congestion_state, CONGESTION_STATE, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(delivery_failure_reason, DELIVERY_FAILURE_REASON, uint8_t);
+		SMPP_PDU_TLV_STRING_RANGE(dest_addr_np_information, DEST_ADDR_NP_INFORMATION, 10, 10);
+		SMPP_PDU_TLV_STRING_RANGE(dest_network_id, DEST_NETWORK_ID, 65, 7);
+		SMPP_PDU_TLV_STRING_RANGE(dest_node_id, DEST_NODE_ID, 6, 6);
+		SMPP_PDU_TLV_SIMPLE(dest_network_type, DEST_NETWORK_TYPE, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(dest_addr_np_resolution, DEST_ADDR_NP_RESOLUTION, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(dest_addr_subunit, DEST_ADDR_SUBUNIT, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(dest_bearer_type, DEST_BEARER_TYPE, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(dest_port, DEST_PORT, uint16_t);
+		SMPP_PDU_TLV_SIMPLE(display_time, DISPLAY_TIME, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(dpf_result, DPF_RESULT, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(its_reply_type, ITS_REPLY_TYPE, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(language_indicator, LANGUAGE_INDICATOR, uint8_t);
+		SMPP_PDU_TLV_STRING(message_payload, MESSAGE_PAYLOAD);
+		SMPP_PDU_TLV_SIMPLE(message_state, MESSAGE_STATE, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(more_messages_to_send, MORE_MESSAGES_TO_SEND, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(ms_availability_status, MS_AVAILABILITY_STATUS, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(number_of_messages, NUMBER_OF_MESSAGES, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(payload_type, PAYLOAD_TYPE, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(privacy_indicator, PRIVACY_INDICATOR, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(qos_time_to_live, QOS_TIME_TO_LIVE, uint32_t);
+		SMPP_PDU_TLV_STRING_RANGE(receipted_message_id, RECEIPTED_MESSAGE_ID, 65, 1);
+		SMPP_PDU_TLV_SIMPLE(sar_msg_ref_num, SAR_MSG_REF_NUM, uint16_t);
+		SMPP_PDU_TLV_SIMPLE(sar_segment_seqnum, SAR_SEGMENT_SEQNUM, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(sar_total_segments, SAR_TOTAL_SEGMENTS, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(sc_interface_version, SC_INTERFACE_VERSION, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(set_dpf, SET_DPF, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(sm_signal, SM_SIGNAL, uint16_t);
+		SMPP_PDU_TLV_SIMPLE(source_addr_subunit, SOURCE_ADDR_SUBUNIT, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(source_bearer_type, SOURCE_BEARER_TYPE, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(source_network_type, SOURCE_NETWORK_TYPE, uint8_t);
+		SMPP_PDU_TLV_STRING_RANGE(source_network_id, SOURCE_NETWORK_ID, 65, 7);
+		SMPP_PDU_TLV_STRING_RANGE(source_node_id, SOURCE_NODE_ID, 6, 6);
+		SMPP_PDU_TLV_SIMPLE(source_port, SOURCE_PORT, uint16_t);
 		SMPP_PDU_TLV_SIMPLE(source_telematics_id, SOURCE_TELEMATICS_ID, uint8_t);
 		SMPP_PDU_TLV_SIMPLE(user_message_reference, USER_MESSAGE_REFERENCE, uint16_t);
 		SMPP_PDU_TLV_SIMPLE(user_response_code, USER_RESPONSE_CODE, uint8_t);
