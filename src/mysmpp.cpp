@@ -7,9 +7,10 @@
 //============================================================================
 
 #include <iostream>
+
+#include "pdu/bind_pdu.h"
 #include "pdu/submit_sm.h"
 #include "pdu/data_sm.h"
-#include "pdu/bind_transmitter.h"
 
 using namespace std;
 
@@ -21,6 +22,7 @@ int main() {
 	pck.destination_addr.npi = smpp::address::NPI_DATA;
 	pck.destination_addr.npi = smpp::address::NPI_ERMES;
 
+	smpp::pdu::bind_transmitter trns("system_id", "password");
 
 	smpp::pdu::ussd_service_op so(123);
 
