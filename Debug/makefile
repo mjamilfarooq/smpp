@@ -8,6 +8,9 @@ RM := rm -rf
 
 # All of the sources participating in the build are defined here
 -include sources.mk
+-include src/utils/network/tcp/subdir.mk
+-include src/tests/subdir.mk
+-include src/smpp/pdu/subdir.mk
 -include src/pdu/subdir.mk
 -include src/subdir.mk
 -include subdir.mk

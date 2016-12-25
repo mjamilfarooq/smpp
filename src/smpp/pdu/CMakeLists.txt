@@ -1,0 +1,13 @@
+
+
+set(PDU_SOURCES
+   ${CMAKE_CURRENT_SOURCE_DIR}/pdu.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/bind_pdu.cpp
+   PARENT_SCOPE
+)
+
+set(PDU_HEADERS
+   ${CMAKE_CURRENT_SOURCE_DIR}/pdu.h
+      ${CMAKE_CURRENT_SOURCE_DIR}/bind_pdu.h
+   PARENT_SCOPE
+)

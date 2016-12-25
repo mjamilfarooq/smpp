@@ -5,10 +5,10 @@
  *      Author: jamil
  */
 
-#ifndef PDU_BROADCAST_SM_H_
-#define PDU_BROADCAST_SM_H_
+#ifndef SMPP_PDU_BROADCAST_SM_H_
+#define SMPP_PDU_BROADCAST_SM_H_
 
-#include "pdu.h"
+#include "../smpp/pdu/pdu.h"
 
 namespace smpp {
 	namespace pdu {
@@ -64,4 +64,4 @@ namespace smpp {
 	};
 
 };
-#endif /* PDU_BROADCAST_SM_H_ */
+#endif /* SMPP_PDU_BROADCAST_SM_H_ */

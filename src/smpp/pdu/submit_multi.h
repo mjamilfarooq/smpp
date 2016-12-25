@@ -5,10 +5,10 @@
  *      Author: jamil
  */
 
-#ifndef PDU_SUBMIT_MULTI_H_
-#define PDU_SUBMIT_MULTI_H_
+#ifndef SMPP_PDU_SUBMIT_MULTI_H_
+#define SMPP_PDU_SUBMIT_MULTI_H_
 
-#include "pdu.h"
+#include "../smpp/pdu/pdu.h"
 
 namespace smpp {
 	namespace pdu {
@@ -82,4 +82,4 @@ namespace smpp {
 	};
 
 };
-#endif /* PDU_SUBMIT_MULTI_H_ */
+#endif /* SMPP_PDU_SUBMIT_MULTI_H_ */

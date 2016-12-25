@@ -5,11 +5,15 @@
  *      Author: jamil
  */
 
-#ifndef PDU_TLV_H_
-#define PDU_TLV_H_
+#ifndef SMPP_PDU_TLV_H_
+#define SMPP_PDU_TLV_H_
 
 #include "pdu.h"
 
+
+#define ADD_STATIC_CONST(name,value) static const uint32_t name = value;
+
+#define LIST_STATIC_CONST(...) __VA_ARGS__
 
 #define SMPP_PDU_TLV_NOVALUE(name, tag_value) \
 		struct name: public tlv { \
@@ -19,7 +23,7 @@
 		};
 
 
-#define SMPP_PDU_TLV_SIMPLE(name,tag_value,type) \
+#define SMPP_PDU_TLV_SIMPLE(name,tag_value,type,...) \
 		struct name: public tlv { \
 			name(type value): \
 				tlv(tag_value, sizeof(type), (uint8_t *)&value) { \
@@ -28,6 +32,7 @@
 			type get() { \
 				return *reinterpret_cast<type *>(value); \
 			} \
+			LIST_STATIC_CONST(__VA_ARGS__) \
 		};
 
 #define SMPP_PDU_TLV_STRING(name,tag_value) \
@@ -415,7 +420,9 @@ namespace smpp {
 		SMPP_PDU_TLV_STRING(message_payload, MESSAGE_PAYLOAD);
 		SMPP_PDU_TLV_SIMPLE(message_state, MESSAGE_STATE, uint8_t);
 		SMPP_PDU_TLV_SIMPLE(more_messages_to_send, MORE_MESSAGES_TO_SEND, uint8_t);
-		SMPP_PDU_TLV_SIMPLE(ms_availability_status, MS_AVAILABILITY_STATUS, uint8_t);
+		SMPP_PDU_TLV_SIMPLE(ms_availability_status, MS_AVAILABILITY_STATUS, uint8_t, ADD_STATIC_CONST(AVAILABLE,0)
+			ADD_STATIC_CONST(DENIED,1)
+			ADD_STATIC_CONST(UNAVAILABLE,2));
 		SMPP_PDU_TLV_SIMPLE(number_of_messages, NUMBER_OF_MESSAGES, uint8_t);
 		SMPP_PDU_TLV_SIMPLE(payload_type, PAYLOAD_TYPE, uint8_t);
 		SMPP_PDU_TLV_SIMPLE(privacy_indicator, PRIVACY_INDICATOR, uint8_t);
@@ -438,9 +445,11 @@ namespace smpp {
 		SMPP_PDU_TLV_SIMPLE(user_response_code, USER_RESPONSE_CODE, uint8_t);
 		SMPP_PDU_TLV_SIMPLE(ussd_service_op, USSD_SERVICE_OP, uint8_t);
 
+
+
 #pragma pack(pop)
 
 	};
 
 };
-#endif /* PDU_TLV_H_ */
+#endif /* SMPP_PDU_TLV_H_ */

@@ -1,0 +1,10 @@
+
+set(TCP_SOURCES
+   ${CMAKE_CURRENT_SOURCE_DIR}/client.cpp
+   PARENT_SCOPE
+)
+
+set(TCP_HEADERS
+   ${CMAKE_CURRENT_SOURCE_DIR}/client.h
+   PARENT_SCOPE
+)

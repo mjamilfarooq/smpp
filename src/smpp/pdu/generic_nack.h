@@ -5,10 +5,10 @@
  *      Author: jamil
  */
 
-#ifndef PDU_GENERIC_NACK_H_
-#define PDU_GENERIC_NACK_H_
+#ifndef SMPP_PDU_GENERIC_NACK_H_
+#define SMPP_PDU_GENERIC_NACK_H_
 
-#include "pdu.h"
+#include "../smpp/pdu/pdu.h"
 
 namespace smpp {
 	namespace pdu {
@@ -33,4 +33,4 @@ namespace smpp {
 	};
 
 };
-#endif /* PDU_GENERIC_NACK_H_ */
+#endif /* SMPP_PDU_GENERIC_NACK_H_ */
