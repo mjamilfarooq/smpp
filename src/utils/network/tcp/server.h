@@ -35,7 +35,7 @@ public:
 };
 
 class server {
-	uint32_t port;
+	uint16_t port;
 	int socket_id;
 	const uint32_t packet_size;
 
@@ -50,7 +50,7 @@ class server {
 	void close(); 	//close server connection
 	void read(int);	//read from client file descriptor and call read handler from client_handler
 public:
-	server(const int32_t, const uint32_t = 1024);
+	server(const uint16_t, const uint32_t = 1024);
 	bool connect();
 	virtual std::shared_ptr<client_handler> create_client_handler(const int, sockaddr_in) = 0;
 	virtual ~server();

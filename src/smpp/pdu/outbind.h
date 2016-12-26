@@ -8,7 +8,7 @@
 #ifndef SMPP_PDU_OUTBIND_H_
 #define SMPP_PDU_OUTBIND_H_
 
-#include "../smpp/pdu/pdu.h"
+#include "pdu.h"
 
 #pragma pack(push, 1)
 
@@ -22,14 +22,18 @@ namespace smpp {
 			char password[9];
 
 			size_t size() {
-				return sizeof(system_id) + sizeof(password);
+				return pdu::size()
+				+ std::min(strlen(system_id)+1, sizeof(system_id))
+				+ std::min(strlen(password)+1, sizeof(password));
 			}
 
 		public:
+			outbind() = default;
+
 			outbind(const std::string &system_id, const std::string &password):
 				pdu(OUTBIND) {
-				::memcpy(this->system_id, system_id.c_str(), std::min(system_id.size(), sizeof(this->system_id)));
-				::memcpy(this->password, password.c_str(), std::min(password.size(), sizeof(this->password)));
+				coctet_cpy(this->system_id, system_id.c_str(), std::min(system_id.length()+1, sizeof(this->system_id)));
+				coctet_cpy(this->password, system_id.c_str(), std::min(password.length()+1, sizeof(this->password)));
 			}
 
 			/*
@@ -37,16 +41,17 @@ namespace smpp {
 			 *
 			 * @return pointer to uint8_t type or nullptr if function fails.
 			 */
-			uint8_t * to_buffer() {
+			virtual buffer_type to_buffer() override {
 				auto buffer = pdu::to_buffer();
-				if ( nullptr == buffer ) {
+				if ( buffer_null == buffer ) {
 					//TODO: error handling
-					return nullptr;
+					return buffer_null;
 				}
 
 				auto copy_offset = pdu::size();
+
 				//copy this structure to buffer
-				::memcpy(buffer+copy_offset, this+copy_offset, size());
+//				::memcpy(buffer+copy_offset, this+copy_offset, size());
 				return buffer;
 			}
 
@@ -56,11 +61,25 @@ namespace smpp {
 			 *
 			 * @param buffer to be copy from.
 			 */
-			size_t from_buffer(const uint8_t * buffer) {
-				if ( nullptr == buffer ) return 0;
-				auto copy_offset = pdu::from_buffer(buffer);
-				::memcpy(this+copy_offset, buffer+copy_offset, size());
-				return command_length;
+			virtual size_t from_buffer(buffer_type in) override {
+				if ( buffer_null == in ) {
+					return 0;
+				}
+
+				auto copy_offset = pdu::from_buffer(in);
+				auto buffer = reinterpret_cast<char *>(in.first.get());
+				copy_offset += coctet_cpy(system_id, buffer+copy_offset, sizeof(system_id));
+				copy_offset += coctet_cpy(password, buffer+copy_offset, sizeof(password));
+
+				return copy_offset;
+			}
+
+			char* get_systemid() {
+				return system_id;
+			}
+
+			char* get_password() {
+				return password;
 			}
 
 		};

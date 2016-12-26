@@ -11,7 +11,7 @@ namespace utils {
 namespace network {
 namespace tcp {
 
-server::server(const int32_t port, const uint32_t packet_size):
+server::server(const uint16_t port, const uint32_t packet_size):
 		port(port),
 		socket_id(0),
 		packet_size(packet_size) {
@@ -108,11 +108,10 @@ void server::read(int client_id) {
 		return;
 	} else if ( 0 == size ) {
 		close(client_id);
+		return;
+	} else {
+		handler->read(buffer);
 	}
-
-	handler->read(buffer);
-
-
 }
 
 void server::close(int client_id, bool is_exist) {
@@ -120,7 +119,7 @@ void server::close(int client_id, bool is_exist) {
 		client_handlers[client_id]->on_disconnect();
 		client_handlers.erase(client_id);
 	}
-	::close(client_id);
+
 	FD_CLR(client_id, &active_fd_set);
 }
 
