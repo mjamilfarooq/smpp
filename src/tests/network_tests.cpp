@@ -13,6 +13,7 @@
 #include "../utils/network/tcp/client.h"
 #include "../smpp/pdu/bind_pdu.h"
 #include "../smpp/pdu/unbind.h"
+#include "../smpp/pdu/enquire_link.h"
 
 using namespace utils::network::tcp;
 using namespace smpp::pdu;
@@ -21,6 +22,25 @@ using namespace std;
 
 
 BOOST_AUTO_TEST_SUITE(network_tests_suit)
+
+
+bool enquire_test(client& tcp_connection, uint32_t sequence_number) {
+	enquire_link enquire_req(sequence_number);
+	if ( true != tcp_connection.write(enquire_req.to_buffer()) ) return false;
+
+	pdu enquire_resp;
+	auto buffer = tcp_connection.read();
+
+	if ( buffer_null == buffer) return false;
+
+	if ( 16 != enquire_resp.from_buffer(buffer) ) return false;
+
+	if ( enquire_resp.get_id() != smpp::pdu::ENQUIRE_LINK_RESP ) return false;
+
+	if ( enquire_resp.get_seqnum() != sequence_number ) return false;
+
+	return true;
+}
 
 BOOST_AUTO_TEST_CASE(tcp_connection_test) {
 
@@ -34,8 +54,6 @@ BOOST_AUTO_TEST_CASE(tcp_connection_test) {
 
 	tcp_connection.write(transceiver.to_buffer());
 
-	sleep(1);
-
 	bind_pdu trans_resp;
 	trans_resp.from_buffer(tcp_connection.read());
 
@@ -43,6 +61,9 @@ BOOST_AUTO_TEST_CASE(tcp_connection_test) {
 	BOOST_CHECK_MESSAGE( trans_resp.get_id() == smpp::pdu::BIND_TRANSCEIVER_RESP , "command_id : "<<trans_resp.get_id());
 	BOOST_CHECK_MESSAGE( trans_resp.get_status() == 0 , "command_status : "<<trans_resp.get_status());
 	BOOST_CHECK_MESSAGE( strcasecmp(trans_resp.get_systemid(), "SMPPSim") == 0 , "system_id : "<<trans_resp.get_systemid());
+
+	BOOST_CHECK_MESSAGE( enquire_test(tcp_connection, 1234) , "enquire link test failed!" );
+
 
 	unbind unbind_req(1234);
 	tcp_connection.write(unbind_req.to_buffer());

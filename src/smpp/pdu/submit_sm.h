@@ -8,7 +8,7 @@
 #ifndef SMPP_PDU_SUBMIT_SM_H_
 #define SMPP_PDU_SUBMIT_SM_H_
 
-#include "../smpp/pdu/pdu.h"
+#include "pdu.h"
 
 namespace smpp{
 
@@ -23,7 +23,7 @@ namespace smpp{
 			smpp::address::address<21> source_addr;
 			smpp::address::address<21> destination_addr;
 
-			uint8_t esm_struct;
+			uint8_t esm_class;
 			uint8_t protocol_id;
 			uint8_t priority_flag;
 
@@ -43,6 +43,9 @@ namespace smpp{
 			submit_sm():
 				pdu(SUBMIT_SM) {
 			}
+
+			virtual buffer_type to_buffer();
+			virtual size_t from_buffer(buffer_type);
 
 			virtual ~submit_sm(){
 

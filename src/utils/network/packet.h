@@ -8,9 +8,16 @@
 #ifndef UTILS_NETWORK_PACKET_H_
 #define UTILS_NETWORK_PACKET_H_
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <unistd.h>
+#include <arpa/inet.h>
 #include <iomanip>
 #include <arpa/inet.h>
 #include <memory>
+#include <iostream>
 
 namespace utils {
 	namespace network {
@@ -19,7 +26,7 @@ namespace utils {
 		const auto buffer_null = buffer_type{nullptr, 0};
 
 		inline buffer_type create_buffer(const uint32_t size) {
-			return {std::shared_ptr<uint8_t>(new uint8_t[size], std::default_delete<uint8_t []>()), 0};
+			return {std::shared_ptr<uint8_t>(new uint8_t[size], std::default_delete<uint8_t []>()), size};
 		}
 
 		/*
