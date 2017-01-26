@@ -62,6 +62,9 @@ public:
 	}
 };
 
+
+//bool check_exception(std::system_error const &e) { return e.what() == "example"; }
+
 BOOST_AUTO_TEST_SUITE(tcp_server_tests)
 
 BOOST_AUTO_TEST_CASE(tcp_server_telnet) {
@@ -69,8 +72,13 @@ BOOST_AUTO_TEST_CASE(tcp_server_telnet) {
 	BOOST_TEST_CHECKPOINT("Starting");
 
 	telnet_connection telnet_server(49000);
-
-	BOOST_CHECK_MESSAGE( telnet_server.connect() , "Couldn't connect to outbind connection!!" );
+//	BOOST_CHECK_EXCEPTION(telnet_server.connect() , std::system_error, check_exception );
+	telnet_server.connect();
+	BOOST_CHECK_EXCEPTION( telnet_server.wait() , std::system_error, [](std::system_error const &e){
+		std::cout<<e.what()<<e.code()<<e.code().message()<<std::endl;
+		return e.code().value() > 0;
+	});
+//	BOOST_CHECK_MESSAGE( result , "Couldn't connect to outbind connection!!" );
 
 
 

@@ -11,7 +11,6 @@ RM := rm -rf
 -include src/utils/network/tcp/subdir.mk
 -include src/tests/subdir.mk
 -include src/smpp/pdu/subdir.mk
--include src/pdu/subdir.mk
 -include src/subdir.mk
 -include subdir.mk
 -include objects.mk

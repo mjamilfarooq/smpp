@@ -27,5 +27,4 @@ src \
 src/smpp/pdu \
 src/tests \
 src/utils/network/tcp \
-src/pdu \
 
