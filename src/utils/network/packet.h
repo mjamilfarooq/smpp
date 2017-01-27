@@ -36,7 +36,7 @@ namespace utils {
 
 			buffer_type3(uint32_t size):
 				size(size),
-				buffer(new uint8_t[size]),
+				buffer(new uint8_t[size+1]),	//total data plus end of array
 				pos(0) {
 			}
 
@@ -59,8 +59,11 @@ namespace utils {
 				return *this;
 			}
 
-			bool operator==(std::nullptr_t arg) const { return buffer == nullptr; }
-			bool operator!=(std::nullptr_t arg) const { return buffer != nullptr; }
+			bool operator==(const std::nullptr_t arg) const { return buffer == nullptr; }
+			bool operator!=(const std::nullptr_t arg) const { return buffer != nullptr; }
+
+			friend bool operator == (const std::nullptr_t, const buffer_type3 &);
+			friend bool operator != (const std::nullptr_t, const buffer_type3 &);
 
 			template<typename T>
 			const buffer_type3& operator += (const T para) const {
@@ -85,7 +88,7 @@ namespace utils {
 				return *this;
 			}
 
-			const buffer_type3& operator += (const char* const type) const {
+			const buffer_type3& operator += (const char* type) const {
 				if ( type == nullptr ) return *this;
 				auto len = strlen(type);
 				if ( *this != nullptr &&
@@ -96,11 +99,45 @@ namespace utils {
 				return *this;
 			}
 
+
 			uint8_t& operator[](uint32_t index) {
 				return *(buffer.get()+index);
 			}
 
+
+			void reset() {
+				pos = 0;
+			}
+
+			template <typename T>
+			friend T& operator += (T&, const buffer_type3&);
+
 		};
+
+		template <typename T>
+		T& operator += (T& val, const buffer_type3& buffer) {
+			static_assert( sizeof(T) <= 4 , "sizeof datatype must be less or equal to 4");
+			auto len = sizeof(val);
+			T temp;
+			::memcpy(&temp, buffer.buffer.get() + buffer.pos, len);
+			switch ( len ) {
+			case 1:
+				val = temp;
+				break;
+			case 2:
+				val= ntohs(temp);
+				break;
+			case 4:
+				val = ntohl(temp);
+				break;
+			}
+			buffer.pos += len;
+			return val;
+		}
+
+		inline bool operator == (const std::nullptr_t arg, const buffer_type3 &buff) { return buff == nullptr; }
+		inline bool operator != (const std::nullptr_t arg, const buffer_type3 &buff) { return buff != nullptr; }
+
 
 		class buffer_type2 {
 			uint32_t size;

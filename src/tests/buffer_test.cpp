@@ -8,7 +8,7 @@
 
 
 
-#define BOOST_TEST_MODULE network connection tests
+#define BOOST_TEST_MODULE network buffer tests
 #include <boost/test/auto_unit_test.hpp>
 #include "../utils/network/tcp/client.h"
 #include "../smpp/pdu/bind_pdu.h"
@@ -59,6 +59,10 @@ BOOST_AUTO_TEST_CASE(buffer_test) {
 		BOOST_CHECK_MESSAGE( mybuffer != nullptr, " == allocated memory for buffer 1" );
 		BOOST_CHECK_MESSAGE( another == nullptr, " != allocated memory for buffer 2" );
 
+		//comparision tests with nullptr on the left side
+		BOOST_CHECK_MESSAGE( nullptr != mybuffer , " == allocated memory for buffer 1" );
+		BOOST_CHECK_MESSAGE( nullptr == another , " != allocated memory for buffer 2" );
+
 		//move construction test
 		auto mvconst = std::move(mybuffer);
 		BOOST_CHECK_MESSAGE( mybuffer == nullptr, " move constructor mybuffer should be nullptr" );
@@ -74,31 +78,49 @@ BOOST_AUTO_TEST_CASE(buffer_test) {
 		another += int32_t(2);
 		another += int8_t(4);
 		another += uint8_t(8);
+		another += int16_t(-4);
+		another += uint16_t(8);
 //		another += int64_t(16);
 //		another += uint64_t(32);
 
 		{
 			uint32_t a = 0;
 			::memcpy(&a, &another[0], sizeof(a));
-			BOOST_CHECK_MESSAGE( a == 1, "uint32_t value assigned is comparable to 1");
+			a = ntohl(a);
+			BOOST_CHECK_MESSAGE( a == 1, "uint32_t value assigned isn't comparable to 1");
 		}
 
 		{
 			int32_t a = 0;
 			::memcpy(&a, &another[4], sizeof(a));
-			BOOST_CHECK_MESSAGE( a == 2, "int32_t value assigned is comparable to 2");
+			a = ntohl(a);
+			BOOST_CHECK_MESSAGE( a == 2, "int32_t value assigned isn't comparable to 2");
 		}
 
 		{
 			int8_t a = 0;
 			::memcpy(&a, &another[8], sizeof(a));
-			BOOST_CHECK_MESSAGE( a == 4, "int8_t value assigned is comparable to 4");
+			BOOST_CHECK_MESSAGE( a == 4, "int8_t value assigned isn't comparable to 4");
 		}
 
 		{
 			uint8_t a = 0;
 			::memcpy(&a, &another[9], sizeof(a));
-			BOOST_CHECK_MESSAGE( a == 8, "uint32_t value assigned is comparable to 8");
+			BOOST_CHECK_MESSAGE( a == 8, "uint32_t value assigned isn't comparable to 8");
+		}
+
+		{
+			int16_t a = 0;
+			::memcpy(&a, &another[10], sizeof(a));
+			a = ntohs(a);
+			BOOST_CHECK_MESSAGE( a == -4 , "int16_t value assigned isn't comparable to -4");
+		}
+
+		{
+			uint16_t a = 0;
+			::memcpy(&a, &another[12], sizeof(a));
+			a = ntohs(a);
+			BOOST_CHECK_MESSAGE( a == 8 , "uint16_t value assigned isn't comparable to 8");
 		}
 
 //		{
@@ -113,8 +135,44 @@ BOOST_AUTO_TEST_CASE(buffer_test) {
 //			BOOST_CHECK_MESSAGE( a == 32, "int8_t value assigned is comparable to 32");
 //		}
 
+		another.reset();
 
+		{
+			uint32_t a = 0;
+			a += another;
+			BOOST_CHECK_MESSAGE( a == 1, "uint32_t value assigned isn't comparable to 1");
+		}
 
+		{
+			int32_t a = 0;
+			a += another;
+			BOOST_CHECK_MESSAGE( a == 2, "int32_t value assigned isn't comparable to 2");
+		}
+
+		{
+			int8_t a = 0;
+			a += another;
+			BOOST_CHECK_MESSAGE( a == 4, "int8_t value assigned isn't comparable to 4");
+		}
+
+		{
+			uint8_t a = 0;
+			a += another;
+			BOOST_CHECK_MESSAGE( a == 8, "uint32_t value assigned isn't comparable to 8");
+		}
+
+		{
+
+			int16_t a = 0;
+			a += another;
+			BOOST_CHECK_MESSAGE( a == -4 , "int16_t value assigned isn't comparable to -4");
+		}
+
+		{
+			uint16_t a = 0;
+			a += another;
+			BOOST_CHECK_MESSAGE( a == 8 , "uint16_t value assigned isn't comparable to 8");
+		}
 
 	}
 
