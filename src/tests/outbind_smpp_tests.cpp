@@ -15,6 +15,7 @@
 #include "../utils/network/tcp/server.h"
 #include "../smpp/pdu/outbind.h"
 
+
 using namespace smpp::pdu;
 using namespace utils::network;
 using namespace utils::network::tcp;
@@ -37,19 +38,17 @@ public:
 	}
 
 	virtual void read(buffer_type buffer) override {
-		if ( buffer_null == buffer ) return;
-
 		outbind ob;
-		auto size = ob.from_buffer(buffer);
+		buffer = ob.from_buffer(std::move(buffer));
 
 		cout<<"outbind information (system_id, password): "<<ob.get_systemid()<<", "<<ob.get_password();
 	}
 
 	size_t write(std::string out) {
-		auto buffer = create_buffer(out.length()+1);
-		if ( buffer_null == buffer ) return 0;
-		auto size = coctet_cpy(reinterpret_cast<char *>(buffer.first.get()), out.c_str(), buffer.second);
-		return client_handler::write(buffer);
+		auto len = out.length()+1;
+		auto buffer = buffer_type(len);
+		buffer += out.c_str();
+		return client_handler::write(std::move(buffer));
 	};
 
 	virtual ~outbind_smpp_client(){}
@@ -63,6 +62,15 @@ public:
 
 	std::shared_ptr<client_handler> create_client_handler(int client_id, sockaddr_in addr) {
 		return std::make_shared<outbind_smpp_client>(client_id, addr);
+	}
+protected:
+
+	void on_connect() override {
+		BOOST_TEST_MESSAGE( "In on_connnect for outbind_connection " );
+	}
+
+	void on_disconnect() override {
+		BOOST_TEST_MESSAGE( "In on_disconnnect for outbind_connection " );
 	}
 };
 

@@ -8,8 +8,10 @@
 #ifndef SMPP_PDU_TLV_H_
 #define SMPP_PDU_TLV_H_
 
-#include "pdu.h"
 
+#include "../../utils/network/network.h"
+
+using namespace utils::network;
 
 #define ADD_STATIC_CONST(name,value) static const uint32_t name = value;
 
@@ -176,13 +178,13 @@ namespace smpp {
 				return sizeof(tag) + sizeof(length) + length;
 			}
 
-			size_t to_buffer(uint8_t * const buffer) {
-				auto copy_offset = size_t(0);
-				::memcpy(buffer+copy_offset, &tag, sizeof(tag)); copy_offset += sizeof(tag);
-				::memcpy(buffer+copy_offset, &length, sizeof(length)); copy_offset += sizeof(length);
-				::memcpy(buffer+copy_offset, value, length); copy_offset += length;
-				return copy_offset;
-			}
+//			buffer_type to_buffer(uint8_t * const buffer) {
+//				auto copy_offset = size_t(0);
+//				::memcpy(buffer+copy_offset, &tag, sizeof(tag)); copy_offset += sizeof(tag);
+//				::memcpy(buffer+copy_offset, &length, sizeof(length)); copy_offset += sizeof(length);
+//				::memcpy(buffer+copy_offset, value, length); copy_offset += length;
+//				return copy_offset;
+//			}
 
 			size_t from_buffer(const uint8_t *buffer) {
 				if ( nullptr == buffer ) {

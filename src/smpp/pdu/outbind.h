@@ -18,22 +18,22 @@ namespace smpp {
 	
 		class outbind: public pdu {
 		private:
-			char system_id[16];
-			char password[9];
+			coctet<16> system_id;
+			coctet<9> password;
 
 			size_t size() {
 				return pdu::size()
-				+ std::min(strlen(system_id)+1, sizeof(system_id))
-				+ std::min(strlen(password)+1, sizeof(password));
+				+ system_id.size()
+				+ password.size();
 			}
 
 		public:
 			outbind() = default;
 
-			outbind(const std::string &system_id, const std::string &password):
-				pdu(OUTBIND) {
-				coctet_cpy(this->system_id, system_id.c_str(), std::min(system_id.length()+1, sizeof(this->system_id)));
-				coctet_cpy(this->password, system_id.c_str(), std::min(password.length()+1, sizeof(this->password)));
+			outbind(const std::string &system_id, const std::string &password, const uint32_t sequence_number):
+				pdu(OUTBIND, sequence_number),
+				system_id(system_id),
+				password(password) {
 			}
 
 			/*
@@ -43,15 +43,10 @@ namespace smpp {
 			 */
 			virtual buffer_type to_buffer() override {
 				auto buffer = pdu::to_buffer();
-				if ( buffer_null == buffer ) {
-					//TODO: error handling
-					return buffer_null;
-				}
 
-				auto copy_offset = pdu::size();
+				buffer += system_id;
+				buffer += password;
 
-				//copy this structure to buffer
-//				::memcpy(buffer+copy_offset, this+copy_offset, size());
 				return buffer;
 			}
 
@@ -61,25 +56,22 @@ namespace smpp {
 			 *
 			 * @param buffer to be copy from.
 			 */
-			virtual size_t from_buffer(buffer_type in) override {
-				if ( buffer_null == in ) {
-					return 0;
-				}
+			virtual buffer_type from_buffer(buffer_type in) override {
 
-				auto copy_offset = pdu::from_buffer(in);
-				auto buffer = reinterpret_cast<char *>(in.first.get());
-				copy_offset += coctet_cpy(system_id, buffer+copy_offset, sizeof(system_id));
-				copy_offset += coctet_cpy(password, buffer+copy_offset, sizeof(password));
+				auto buffer = pdu::from_buffer(std::move(in));
 
-				return copy_offset;
+				system_id += buffer;
+				password += buffer;
+
+				return buffer;
 			}
 
 			char* get_systemid() {
-				return system_id;
+				return system_id.get();
 			}
 
 			char* get_password() {
-				return password;
+				return password.get();
 			}
 
 		};

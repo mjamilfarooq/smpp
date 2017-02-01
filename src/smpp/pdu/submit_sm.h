@@ -44,8 +44,8 @@ namespace smpp{
 				pdu(SUBMIT_SM) {
 			}
 
-			virtual buffer_type to_buffer();
-			virtual size_t from_buffer(buffer_type);
+			virtual buffer_type to_buffer() override;
+			virtual buffer_type from_buffer(buffer_type) override;
 
 			virtual ~submit_sm(){
 

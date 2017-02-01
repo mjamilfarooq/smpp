@@ -31,9 +31,7 @@ bool enquire_test(client& tcp_connection, uint32_t sequence_number) {
 	pdu enquire_resp;
 	auto buffer = tcp_connection.read();
 
-	if ( buffer_null == buffer) return false;
-
-	if ( 16 != enquire_resp.from_buffer(buffer) ) return false;
+	buffer = enquire_resp.from_buffer(std::move(buffer));
 
 	if ( enquire_resp.get_id() != smpp::pdu::ENQUIRE_LINK_RESP ) return false;
 
@@ -42,15 +40,35 @@ bool enquire_test(client& tcp_connection, uint32_t sequence_number) {
 	return true;
 }
 
+class tcp_client: public client {
+public:
+	tcp_client():
+		client("127.0.0.1", 2775) {
+	}
+
+	void run() override {
+
+	}
+
+protected:
+	void on_connect() override {
+		BOOST_TEST_MESSAGE( "OnConnect Call Inside tcp_client!!" );
+	}
+
+	void on_disconnect() override {
+		BOOST_TEST_MESSAGE( "OnDisconnect Call Inside tcp_client!!" );
+	}
+};
+
 BOOST_AUTO_TEST_CASE(tcp_connection_test) {
 
 	BOOST_TEST_CHECKPOINT("Starting");
 
-	client tcp_connection("127.0.0.1", 2775);
+	tcp_client tcp_connection;
 
 	BOOST_CHECK( tcp_connection.connect() );
 
-	bind_transceiver transceiver("smppclient1", "password");
+	bind_transceiver transceiver("smppclient1", "password", 1);
 
 	tcp_connection.write(transceiver.to_buffer());
 
@@ -61,7 +79,6 @@ BOOST_AUTO_TEST_CASE(tcp_connection_test) {
 	BOOST_CHECK_MESSAGE( trans_resp.get_id() == smpp::pdu::BIND_TRANSCEIVER_RESP , "command_id : "<<trans_resp.get_id());
 	BOOST_CHECK_MESSAGE( trans_resp.get_status() == 0 , "command_status : "<<trans_resp.get_status());
 	BOOST_CHECK_MESSAGE( strcasecmp(trans_resp.get_systemid(), "SMPPSim") == 0 , "system_id : "<<trans_resp.get_systemid());
-
 	BOOST_CHECK_MESSAGE( enquire_test(tcp_connection, 1234) , "enquire link test failed!" );
 
 
@@ -69,22 +86,8 @@ BOOST_AUTO_TEST_CASE(tcp_connection_test) {
 	tcp_connection.write(unbind_req.to_buffer());
 
 	pdu unbind_reply;
-	auto read_reply = tcp_connection.read();
 
-	BOOST_REQUIRE( read_reply != buffer_null );
-
-	auto cmd_len = ntohl(*reinterpret_cast<uint32_t *>(read_reply.first.get()));
-	auto cmd_id = ntohl(*reinterpret_cast<uint32_t *>(read_reply.first.get()+4));
-	auto cmd_status = ntohl(*reinterpret_cast<uint32_t *>(read_reply.first.get()+8));
-	auto cmd_seq = ntohl(*reinterpret_cast<uint32_t *>(read_reply.first.get()+12));
-
-	BOOST_CHECK_MESSAGE( cmd_len == 16 , "cmd_len: "<<cmd_len );
-	BOOST_CHECK_MESSAGE( cmd_id == smpp::pdu::UNBIND_RESP , "cmd_id: "<<cmd_id );
-	BOOST_CHECK_MESSAGE( cmd_status == 0 , "cmd_status: "<<cmd_status );
-	BOOST_CHECK_MESSAGE( cmd_seq == 1234 , "cmd_seq: "<<cmd_seq );
-
-
-	unbind_reply.from_buffer(read_reply);
+	unbind_reply.from_buffer(tcp_connection.read());
 
 	BOOST_CHECK_MESSAGE( unbind_reply.get_length() == 16 , "unbind_resp length doesn't match 16 = "<<unbind_reply.get_length() );
 	BOOST_CHECK_MESSAGE( unbind_reply.get_seqnum() == 1234 , "unbind_resp sequence number doesn't match 1234 = "<<unbind_reply.get_seqnum() );

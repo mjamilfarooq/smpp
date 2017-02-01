@@ -18,7 +18,8 @@
 
 #include "tlv.h"
 #include "address.h"
-#include "../../utils/network/packet.h"
+#include "../../utils/utils.h"
+
 
 
 using namespace utils::network;
@@ -63,6 +64,8 @@ namespace smpp {
 		const static uint32_t ALERT_NOTIFICATION	= 0x00000102;
 
 
+		const static uint32_t STATUS_SUCCESS		= 0x00000000;
+		const static uint32_t STATUS_FAILURE		= !STATUS_SUCCESS;
 
 
 		class pdu: public packet {
@@ -76,25 +79,33 @@ namespace smpp {
 
 		public:
 
+			using pointer = pdu *;
 			pdu() = default;
-			pdu(uint32_t);
+			pdu(uint32_t, uint32_t);
 
 			void set_length(uint32_t);
 			void set_id(uint32_t);
 			void set_status(uint32_t);
 			void set_seqnum(uint32_t);
 
+			bool operator == (const uint32_t command_id) const ;
+
+
 			uint32_t get_length();
 			uint32_t get_id();
 			uint32_t get_status();
 			uint32_t get_seqnum();
 
-			virtual buffer_type to_buffer();
-			virtual size_t from_buffer(buffer_type);
+			virtual buffer_type to_buffer() override;
+			virtual buffer_type from_buffer(buffer_type) override;
 			virtual ~pdu();
 
 		};
 
+
+		inline bool pdu::operator == (const uint32_t command_id) const {
+			return this->command_id == command_id;
+		}
 
 		inline void pdu::set_id(uint32_t id) {
 			command_id = id;

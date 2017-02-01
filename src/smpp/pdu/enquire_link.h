@@ -18,7 +18,7 @@ namespace smpp {
 		class enquire_link: public pdu {
 		public:
 			enquire_link(uint32_t sequence_number):
-				pdu(ENQUIRE_LINK) {
+				pdu(ENQUIRE_LINK, sequence_number) {
 				set_seqnum(sequence_number);
 			}
 		};
@@ -27,7 +27,7 @@ namespace smpp {
 		class enquire_link_resp: public pdu {
 		public:
 			enquire_link_resp(uint32_t sequence_number):
-				pdu(ENQUIRE_LINK_RESP) {
+				pdu(ENQUIRE_LINK_RESP, sequence_number) {
 				set_seqnum(sequence_number);
 			}
 		};

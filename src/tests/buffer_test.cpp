@@ -9,6 +9,7 @@
 
 
 #define BOOST_TEST_MODULE network buffer tests
+#include <exception>
 #include <boost/test/auto_unit_test.hpp>
 #include "../utils/network/tcp/client.h"
 #include "../smpp/pdu/bind_pdu.h"
@@ -17,11 +18,133 @@
 
 using namespace utils::network;
 
+
 using namespace std;
 
 
 
 BOOST_AUTO_TEST_SUITE(buffer_tests_suit)
+
+buffer_type3 create_buffer (uint32_t size) {
+	return buffer_type3(size);
+}
+
+BOOST_AUTO_TEST_CASE(coctet_test) {
+	BOOST_TEST_CHECKPOINT("Starting");
+
+	coctet<16> system_id("ufone");
+	coctet<16> another_id;
+
+	auto buffer = buffer_type(16);
+	buffer += system_id;
+	buffer.reset();
+	another_id += buffer;
+
+	BOOST_CHECK_MESSAGE( strcmp(another_id.get(), "ufone") == 0 , " system_id and another_id doesn't match" );
+
+	BOOST_TEST_CHECKPOINT("Ending");
+
+}
+
+class test_packet: public packet {
+	coctet<16> system_id;
+	uint32_t command_id;
+public:
+
+	test_packet(): command_id(0) {
+	}
+
+	test_packet(std::string system_id, uint32_t command_id):
+		system_id(system_id),
+		command_id(command_id) {
+	}
+
+	virtual buffer_type to_buffer() override {
+		auto buffer = buffer_type(system_id.length() + sizeof(command_id));
+
+		buffer += system_id;
+		buffer += command_id;
+
+		return buffer;
+	}
+
+	virtual buffer_type from_buffer(buffer_type buffer) override {
+
+		system_id += buffer;
+		command_id += buffer;
+
+		return buffer;
+	}
+
+	bool test_systemid(std::string str) {
+		return strcmp(str.c_str(), system_id.get()) == 0;
+	}
+
+	bool test_commandid(uint32_t command_id) {
+		return this->command_id == command_id;
+	}
+
+	~test_packet() {}
+
+};
+
+bool handle_exception( std::exception const& ex ) {
+	BOOST_TEST_MESSAGE( ex.what() );
+	if ( typeid(ex) == typeid(std::logic_error) )
+		return true;
+	return false;
+}
+
+BOOST_AUTO_TEST_CASE(packet_to_and_from_buffer_test) {
+	BOOST_TEST_CHECKPOINT("Testing packet copy from buffer");
+	std::string test_sysid = "ufone";
+	uint32_t test_commid = 0x8F8F8F8F;
+	test_packet pack1(test_sysid, test_commid);
+
+
+	test_packet pack2;
+	auto buffer = pack1.to_buffer();
+	BOOST_CHECK_MESSAGE( buffer != nullptr , "buffer is null" );
+	buffer.reset();
+	pack2.from_buffer(std::move(buffer));	//when lvalue buffer is used, use with std::move
+
+	//checking population of coctet from string
+	BOOST_CHECK_MESSAGE( pack2.test_systemid(test_sysid) , " system_id doesn't match" );
+	BOOST_CHECK_MESSAGE( pack2.test_commandid(test_commid) , "command_id doesn't match" );
+
+	BOOST_TEST_CHECKPOINT("Ending ... Testing packet copy from buffer");
+}
+
+BOOST_AUTO_TEST_CASE(packet_implementation_test) {
+	BOOST_TEST_CHECKPOINT("Starting");
+
+	std::string test_sysid = "ufone";
+	uint32_t test_commid = 0x8F8F8F8F;
+	test_packet pack(test_sysid, test_commid);
+
+	//checking population of coctet from string
+	BOOST_CHECK_MESSAGE( pack.test_systemid(test_sysid) , " system_id doesn't match" );
+	BOOST_CHECK_MESSAGE( pack.test_commandid(test_commid) , "command_id doesn't match" );
+
+	//checking population of coctet and uint32_t from buffer obtained from packet
+	auto buffer = pack.to_buffer();
+	buffer.reset();
+	coctet<16> system_id;
+	system_id += buffer;
+	uint32_t command_id;
+	command_id += buffer;
+	uint32_t exception_test;
+
+
+	BOOST_CHECK_MESSAGE( buffer.length() == (system_id.length() + sizeof(command_id)) , " length of buffer doesn't match the desired length" );
+	BOOST_CHECK_MESSAGE( strcmp(test_sysid.c_str(), system_id.get()) == 0 , " copying back system_id from buffer doesn't match" );
+	BOOST_CHECK_MESSAGE( command_id == test_commid , "copying back command_id from buffer doesn't match" );
+	BOOST_CHECK_EXCEPTION( exception_test += buffer, std::exception, handle_exception );
+
+
+
+	BOOST_TEST_CHECKPOINT("Ending");
+}
 
 BOOST_AUTO_TEST_CASE(buffer_test) {
 
@@ -51,7 +174,7 @@ BOOST_AUTO_TEST_CASE(buffer_test) {
 
 	//testing buffer_type3 memory handled with unique_ptr as buffer
 	{
-		auto mybuffer = buffer_type3(10000);
+		auto mybuffer = create_buffer(10000);
 		auto another = buffer_type3();
 
 		//comparision tests

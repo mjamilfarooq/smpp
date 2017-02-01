@@ -36,16 +36,17 @@ public:
 	}
 
 	virtual void read(buffer_type buffer) {
-		if ( buffer_null == buffer ) return;
-		auto c_str = reinterpret_cast<char *>(buffer.first.get());
+		if ( nullptr == buffer ) return;
+		auto c_str = reinterpret_cast<char *>(buffer.get());
 		cout<<c_str<<endl;
 	}
 
 	virtual size_t write(std::string out) {
-		auto buffer = create_buffer(out.length()+1);
-		if ( buffer_null == buffer ) return 0;
-		auto size = coctet_cpy(reinterpret_cast<char *>(buffer.first.get()), out.c_str(), buffer.second);
-		return client_handler::write(buffer);
+		auto len = out.length()+1;
+		auto buffer = buffer_type(len);
+		coctet_cpy(reinterpret_cast<uint8_t*>(buffer.get()),
+				reinterpret_cast<const uint8_t*>(out.c_str()), len);
+		return client_handler::write(std::move(buffer));
 	};
 
 	virtual ~telnetclient(){}
@@ -58,7 +59,17 @@ public:
 	}
 
 	std::shared_ptr<client_handler> create_client_handler(int client_id, sockaddr_in addr) {
+
 		return std::make_shared<telnetclient>(client_id, addr);
+	}
+
+protected:
+	void on_connect() override {
+		BOOST_TEST_MESSAGE( "In on_connnect for telnet_connection " );
+	}
+
+	void on_disconnect() override {
+		BOOST_TEST_MESSAGE( "In on_disconnnect for telnet_connection " );
 	}
 };
 

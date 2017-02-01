@@ -36,28 +36,29 @@ namespace tcp {
 		if ( ::connect(socket_id,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) return false;
 	//			BOOST_THROW_EXCEPTION(test_exception{}<<boost::errinfo_errno(errno));
 
+		on_connect();
 		return true;
 	}
 
 	buffer_type client::read() {
-		auto buffer = create_buffer(buffer_size);
-		auto size = ::read(socket_id, buffer.first.get(), buffer_size);
+		auto buffer = buffer_type(buffer_size);
+		if ( nullptr == buffer ) return buffer;
 
-		if ( size > 0 ) {
-			return buffer;
-		}
-
-		return buffer_null;
+		auto size = ::read(socket_id, &buffer, buffer.length());
+		return buffer;
 	}
 
 	bool client::write(buffer_type buffer) {
-
-		if ( -1 == ::write(socket_id, buffer.first.get(), buffer.second) ) return false;
+		auto size = ::write(socket_id, &buffer, buffer.length());
+		if ( -1 == size ) return false;
+		on_write(std::move(buffer), size);
 		return true;
 	}
 
-	void client::run() {
 
+	void client::disconnect() {
+		on_disconnect();
+		close(socket_id);
 	}
 
 	client::~client() {

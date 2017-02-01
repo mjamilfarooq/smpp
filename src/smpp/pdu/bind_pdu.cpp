@@ -14,36 +14,41 @@
 namespace smpp {
 namespace pdu {
 
+	bind_pdu::bind_pdu(buffer_type buffer) {
+		from_buffer(std::move(buffer));
+	}
+
 	bind_pdu::bind_pdu( const uint32_t bind_type,
 			const std::string system_id,
 			const std::string password,
+			const uint32_t sequence_number,
 			const std::string system_type,
 			const uint8_t interface_version,
 			const uint8_t addr_ton,
 			const uint8_t addr_npi,
 			const std::string address_range):
-				pdu(bind_type),
+				pdu(bind_type, sequence_number),
+				system_id(system_id),
+				password(password),
+				system_type(system_type),
 				interface_version(interface_version),
 				addr_ton(addr_ton),
-				addr_npi(addr_npi) {
+				addr_npi(addr_npi),
+				address_range(address_range) {
 
-		coctet_cpy(this->system_id, system_id.c_str(), sizeof(this->system_id));
-		coctet_cpy(this->password, password.c_str(), sizeof(this->password));
-		coctet_cpy(this->system_type, system_type.c_str(), sizeof(this->system_type));
-		coctet_cpy(this->address_range, address_range.c_str(), sizeof(this->address_range));
 
 		set_length(size());
 	}
 
 	size_t bind_pdu::size() {
 		return 	pdu::size() +
-				std::min(sizeof(system_id), strlen(system_id)+1) +
-				std::min(sizeof(password), strlen(password)+1) +
-				std::min(sizeof(system_type), strlen(system_type)+1) +
+				system_id.length() +
+				password.length() +
+				system_type.length() +
 				sizeof(interface_version) +
 				sizeof(addr_ton) +
 				sizeof(addr_npi) +
-				std::min(sizeof(address_range), strlen(address_range)+1);
+				address_range.length();
 	}
 
 	/*
@@ -54,28 +59,13 @@ namespace pdu {
 	buffer_type bind_pdu::to_buffer() {
 		auto buffer = pdu::to_buffer();
 
-		if ( buffer_null == buffer ) {
-			//TODO: error handling
-			return buffer_null;
-		}
-
-		auto copy_offset = pdu::size();
-		//copy this structure to buffer
-
-		auto dest = reinterpret_cast<char *>(buffer.first.get());
-
-		copy_offset += coctet_cpy(dest+copy_offset, system_id, std::min(strlen(system_id)+1, sizeof(system_id)));
-		copy_offset += coctet_cpy(dest+copy_offset, password, std::min(strlen(password)+1, sizeof(password)));
-		copy_offset += coctet_cpy(dest+copy_offset, system_type, std::min(strlen(system_type)+1, sizeof(system_type)));
-		::memcpy(dest+copy_offset, &interface_version, sizeof(interface_version));
-		copy_offset += sizeof(interface_version);
-		::memcpy(dest+copy_offset, &addr_ton, sizeof(addr_ton));
-		copy_offset += sizeof(addr_ton);
-		::memcpy(dest+copy_offset, &addr_npi, sizeof(addr_npi));
-		copy_offset += sizeof(addr_npi);
-		copy_offset += coctet_cpy(dest+copy_offset, address_range, std::min(strlen(address_range)+1, sizeof(address_range)));
-
-		buffer.second = copy_offset;
+		buffer += system_id;
+		buffer += password;
+		buffer += system_type;
+		buffer += interface_version;
+		buffer += addr_ton;
+		buffer += addr_npi;
+		buffer += address_range;
 
 		return buffer;
 	}
@@ -86,84 +76,71 @@ namespace pdu {
 	 *
 	 * @param buffer to be copy from.
 	 */
-	size_t bind_pdu::from_buffer(buffer_type in) {
+	buffer_type bind_pdu::from_buffer(buffer_type in) {
 
-		auto copy_offset = pdu::from_buffer(in);
+		auto buffer = pdu::from_buffer(std::move(in));
 
-		if ( 0 == copy_offset ) return 0;
+		std::cout<<" buffer length "<<buffer.length()<<" command length "<<command_length<< std::endl;
 
-		auto buffer = reinterpret_cast<char *>(in.first.get());
+		system_id += buffer;
+		password += buffer;
+		system_type += buffer;
+		interface_version += buffer;
+		addr_ton += buffer;
+		addr_npi += buffer;
+		address_range += buffer;
 
-		copy_offset += coctet_cpy(system_id, buffer+copy_offset, sizeof(system_id));
-		copy_offset += coctet_cpy(password, buffer+copy_offset, sizeof(password));
-		copy_offset += coctet_cpy(system_type, buffer+copy_offset, sizeof(system_type));
-		::memcpy(&interface_version, buffer+copy_offset, sizeof(interface_version));
-		copy_offset += sizeof(interface_version);
-		::memcpy(&addr_ton, buffer+copy_offset, sizeof(addr_ton));
-		copy_offset += sizeof(addr_ton);
-		::memcpy(&addr_npi, buffer+copy_offset, sizeof(addr_npi));
-		copy_offset += sizeof(addr_npi);
-		copy_offset += coctet_cpy(address_range, buffer+copy_offset, sizeof(address_range));
-
-		command_length = copy_offset;
-		return command_length;
+		return buffer;
 	}
 
-	bind_pdu_resp::bind_pdu_resp(const uint32_t bind_type, const std::string &system_id):
-		pdu(bind_type),
+
+	bind_pdu_resp::bind_pdu_resp(buffer_type buffer) {
+		from_buffer(std::move(buffer));
+	}
+
+	bind_pdu_resp::bind_pdu_resp():
 		version(nullptr) {
-		coctet_cpy(this->system_id, system_id.c_str(), sizeof(this->system_id));
+	}
+
+	bind_pdu_resp::bind_pdu_resp(const uint32_t bind_type, const std::string &system_id, const uint32_t sequence_number):
+		pdu(bind_type, sequence_number),
+		system_id(system_id),
+		version(nullptr) {
 		set_length(size());
 	}
 
-	bind_pdu_resp::bind_pdu_resp(const uint32_t bind_type, const std::string &system_id, const uint8_t version):
-		pdu(bind_type),
+
+	bind_pdu_resp::bind_pdu_resp(const uint32_t bind_type, const std::string &system_id, const uint8_t version, const uint32_t sequence_number):
+		pdu(bind_type, sequence_number),
+		system_id(system_id),
 		version(new sc_interface_version(version)) {
-		coctet_cpy(this->system_id, system_id.c_str(), sizeof(this->system_id));
 		set_length(size());
 	}
 
 	size_t bind_pdu_resp::size() {
 		return 	pdu::size() +
-				std::min(sizeof(system_id), strlen(system_id)+1);
+				system_id.length();
 	}
 
 	buffer_type bind_pdu_resp::to_buffer() {
 		auto buffer = pdu::to_buffer();
-		if ( buffer_null == buffer ) {
-			return buffer_null;
-		}
 
-		auto copy_offset = pdu::size();
-//		//copy this structure to buffer
-		auto dest = reinterpret_cast<char *>(buffer.first.get());
-		copy_offset += coctet_cpy(dest+copy_offset, system_id, std::min(strlen(system_id)+1, sizeof(system_id)));
-		if ( nullptr != version ) copy_offset += version->to_buffer(reinterpret_cast<uint8_t *>(dest)+copy_offset);
+		buffer += system_id;
+//		buffer += version;	//this requires implementation
 
-		buffer.second = copy_offset;
 		return buffer;
 	}
 
-	size_t bind_pdu_resp::from_buffer(buffer_type in) {
-		if ( buffer_null == in ) return 0;
-		auto copy_offset = pdu::from_buffer(in);
+	buffer_type bind_pdu_resp::from_buffer(buffer_type in) {
 
-		auto buffer = reinterpret_cast<char *>(in.first.get());
+		auto buffer = pdu::from_buffer(std::move(in));
+		system_id += buffer;
+//		version.get()
 
-		copy_offset += coctet_cpy(system_id, buffer+copy_offset, sizeof(system_id));
-
-//		if ( command_length - copy_offset != sizeof(sc_interface_version(0)) ) { // no sc_interface_version
-//			return copy_offset;
-//		}
-//
-//		version = new sc_interface_version(0);
-//		copy_offset += version->from_buffer(buffer+copy_offset);
-		command_length = copy_offset;
-		return command_length;
+		return buffer;
 	}
 
 	bind_pdu_resp::~bind_pdu_resp() {
-		if ( nullptr != version ) delete version;
 	}
 }
 }

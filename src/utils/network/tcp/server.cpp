@@ -42,6 +42,22 @@ bool server::connect() {
 	//execute multiplexer select function and return exit status in future
 	future_sel = std::async(std::launch::async, &server::select, this);
 
+	//call on_connect();
+
+	on_connect();
+
+	return true;
+}
+
+void server::disconnect() {
+	close();
+}
+
+buffer_type server::read() {
+	return buffer_type();
+}
+
+bool server::write(buffer_type buffer) {
 	return true;
 }
 
@@ -120,8 +136,8 @@ void server::read(int client_id) {
 
 	auto& handler = is_exist->second;
 
-	buffer_type buffer = create_buffer(packet_size);
-	auto size = ::read(client_id, buffer.first.get(), packet_size);
+	auto buffer = buffer_type(packet_size);
+	auto size = ::read(client_id, &buffer, packet_size);
 	if ( -1 == size ) {
 		//must throw network_exception here
 		return;
@@ -129,7 +145,7 @@ void server::read(int client_id) {
 		close(client_id);
 		return;
 	} else {
-		handler->read(buffer);
+		handler->read(std::move(buffer));
 	}
 }
 
@@ -146,12 +162,13 @@ void server::close() {
 	client_handlers.clear();
 	::close(socket_id);
 	FD_CLR(socket_id, &active_fd_set);
+	if ( future_sel.valid() )
+		future_sel.get();
+	on_disconnect();
 }
 
 server::~server() {
 	close();
-	if ( future_sel.valid() )
-		auto result_sel = future_sel.get();
 }
 
 client_handler::client_handler(int32_t client_id, sockaddr_in addr):
@@ -160,7 +177,7 @@ client_handler::client_handler(int32_t client_id, sockaddr_in addr):
 }
 
 size_t client_handler::write(buffer_type buffer) {
-	return ::write(socket_id, buffer.first.get(), buffer.second);
+	return ::write(socket_id, &buffer, buffer.length());
 }
 
 client_handler::~client_handler() {

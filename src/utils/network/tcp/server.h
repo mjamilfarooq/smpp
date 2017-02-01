@@ -16,6 +16,7 @@
 #include <utility>
 
 #include "../packet.h"
+#include "../connection.h"
 
 namespace utils {
 namespace network {
@@ -35,7 +36,7 @@ public:
 
 };
 
-class server {
+class server:public connection {
 	uint16_t port;
 	int socket_id;
 	const uint32_t packet_size;
@@ -54,13 +55,21 @@ class server {
 
 public:
 	server(const uint16_t, const uint32_t = 1024);
-	bool connect();
+	virtual bool connect() override final;
+	virtual void disconnect()  override final;
 	virtual std::shared_ptr<client_handler> create_client_handler(const int, sockaddr_in) = 0;
+
+	buffer_type read() override;
+	bool write(buffer_type) override;
+
 	void wait();
 	virtual ~server();
 
 	uint32_t get_packet_size();
 
+protected:
+	virtual void on_connect() = 0;
+	virtual void on_disconnect() = 0;
 private:
 	std::future<bool> future_sel;
 };
