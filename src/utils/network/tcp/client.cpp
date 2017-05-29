@@ -45,6 +45,7 @@ namespace tcp {
 		if ( nullptr == buffer ) return buffer;
 
 		auto size = ::read(socket_id, &buffer, buffer.length());
+//		on_read(std::move(buffer), size);
 		return buffer;
 	}
 

@@ -42,7 +42,7 @@ protected:
 	virtual void on_connect() = 0;
 	virtual void on_disconnect() = 0;
 
-	virtual buffer_type on_read(buffer_type, size_t) = 0;
+	virtual void on_read(buffer_type, size_t) = 0;
 	virtual void on_write(buffer_type, size_t) = 0;
 };
 

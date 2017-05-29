@@ -100,6 +100,9 @@ namespace smpp {
 			virtual buffer_type from_buffer(buffer_type) override;
 			virtual ~pdu();
 
+
+			bool is_response();
+
 		};
 
 
@@ -138,6 +141,11 @@ namespace smpp {
 
 		inline uint32_t pdu::get_seqnum() {
 			return sequence_number;
+		}
+
+		inline bool pdu::is_response() {
+			if ( command_id > 0X80000000 ) return true;
+			return false;
 		}
 
 	}
